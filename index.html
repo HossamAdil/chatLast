@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket.io Chat</title>
+  <style>
+    body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f4f4f4;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+#messages {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: scroll;
+  max-height: 300px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #fff;
+  padding: 10px;
+  width: 400px;
+
+}
+
+
+#form {
+  display: flex;
+  margin-top: 10px;
+}
+
+#m {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+button {
+  padding: 8px 16px;
+  background-color: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+.typing-indicator {
+  font-style: italic;
+  color: #999;
+}
+
+/* Optional: Style the username in messages */
+#messages .username {
+  font-weight: bold;
+  margin-right: 5px;
+  color: #007bff; /* Change the color as needed */
+}
+
+/* Optional: Style system messages */
+#messages .system-message {
+  font-style: italic;
+  color: #777;
+}
+
+
+/* ... (unchanged code) */
+
+/* Style for messages from specific users based on their socket ID */
+#messages li{
+  color: #f5be09; /* Change the color as needed */
+  background-color: #044a99;
+  padding: 8px;
+  border-radius: 10px;
+  margin-top: 3px;
+
+}
+
+#messages .user-socketId2 {
+  color: #33FF57; /* Change the color as needed */
+}
+
+/* Style for typing indicator based on user socket ID */
+#typing.user-socketId1 {
+  color: #FF5733; /* Change the color as needed */
+}
+
+#typing.user-socketId2 {
+  color: #33FF57; /* Change the color as needed */
+}
+
+/* Style for the whole page */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  overflow: hidden; /* Hide the default scrollbar to apply custom style */
+}
+
+/* Style for the scrollable container */
+.messages {
+
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #888 #f0f0f0; /* Firefox */
+}
+
+/* Style for WebKit browsers (Chrome, Safari) */
+.messages::-webkit-scrollbar {
+  width: 12px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background-color: #888;
+}
+
+.messages::-webkit-scrollbar-track {
+  background-color: #f0f0f0;
+}
+
+  </style>
+</head>
+
+<body>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+      <input id="m" autocomplete="off"  placeholder="send message"/>
+      <button>Send</button>
+    </form>
+    <p id="typing" class="typing-indicator"></p>
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.2/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script>
+      $(function () {
+        const socket = io("http://localhost:3000");
+        const $form = $('#form');
+        const $inputMessage = $('#m');
+        const $messages = $('#messages');
+        const $typing = $('#typing');
+  
+        let typing = false;
+  
+        // Function to display typing indicator
+        function displayTypingIndicator(username, socketId) {
+          $typing.html(username + ' is typing...');
+          // Add a class based on the socket ID for styling
+          console.log(socketId);
+
+          $typing.addClass('user-' + socketId);
+          
+
+
+        }
+  
+        // Function to hide typing indicator
+        function hideTypingIndicator(socketId) {
+          $typing.html('');
+          // Remove the class based on the socket ID
+          $typing.removeClass('user-' + socketId);
+        }
+  
+        // Prompt user for a username
+        const username = prompt('Enter your username:');
+        // Emit the username to the server
+        socket.emit('username', username);
+  
+        // Listen for chat messages
+        socket.on('chat message', (msg, username, socketId) => {
+          hideTypingIndicator(socketId);
+          const $messageItem = $('<li>').text(username + ': ' + msg);
+          // Add a class based on the socket ID for styling
+          console.log(socketId);
+          $messageItem.addClass('user-' + socketId);
+          $messages.append($messageItem);
+        });
+  
+        // Listen for typing events
+        $form.on('input', () => {
+            console.log("object");
+          if (!typing) {
+            typing = true;
+            // Notify the server that the user is typing
+
+            console.log("object");
+            socket.emit('typing', true);
+          }
+        });
+  
+        // Handle form submission
+        $form.submit(function (e) {
+          e.preventDefault();
+          const message = $inputMessage.val();
+          // Send the message to the server
+          socket.emit('chat message', message);
+          $inputMessage.val('');
+          hideTypingIndicator(socket.id);
+          typing = false;
+          return false;
+        });
+  
+        // Listen for stop typing events
+        $form.on('blur', () => {
+          if (typing) {
+            // Notify the server that the user stopped typing
+            socket.emit('typing', false);
+          }
+        });
+  
+        // Listen for typing indicator updates from the server
+        socket.on('typing', (isTyping, username, socketId) => {
+            console.log("-------------------"+socketId);
+          if (isTyping) {
+            displayTypingIndicator(username, socketId);
+          } else {
+            hideTypingIndicator(socketId);
+          }
+        });
+      });
+    </script>
+  </body>
+  </html>
